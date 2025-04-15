@@ -13,6 +13,7 @@ on:
     #   Scheduled workflows run on the latest commit on the default or base branch.
     #   (from https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule)
     - cron: "0 2 * * 1"
+  workflow_dispatch:
 
 jobs:
   test:
@@ -20,11 +21,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # os: [macOS-latest, ubuntu-latest, windows-latest]
         os: [ubuntu-latest]
-        python-version: ["3.10","3.11","3.12"]
-        # only 2.4 for now since torch-geometric don't support 2.5.0
-        pytorch-version: ["2.4"]
+        python-version: ["3.10", "3.11", "3.12"]
+        pytorch-version: ["2.5", "2.6"]
 
     steps:
       - uses: actions/checkout@v4
@@ -40,9 +39,11 @@ jobs:
       - name: Create and setup mamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: env-dev.yml
+          # here we specify the environment like this instead of just installing with pip to make caching easier
+          environment-file: .github/env-dev.yml
           environment-name: test
           cache-environment: true
+          cache-environment-key: environment-${{ matrix.python-version }}-${{ matrix.pytorch-version }}
           condarc: |
             channels:
               - conda-forge
