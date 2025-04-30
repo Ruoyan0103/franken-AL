@@ -13,7 +13,7 @@ dependencies:
 - pytest
 - psutil
 - tyro
-- Sphinx
+- sphinx
 - sphinxawesome-theme
 - sphinxcontrib-applehelp
 - sphinxcontrib-devhelp

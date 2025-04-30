@@ -57,6 +57,8 @@ jobs:
           micromamba list
 
       - name: Sphinx build
+        # conda setup requires this special shell
+        shell: bash -l {0}
         run: |
           sphinx-build docs _build
 
