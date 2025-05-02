@@ -22,7 +22,7 @@ dependencies = [
     "e3nn",
     "omegaconf",
     "requests",
-    "tyro",
+    "docstring_parser",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

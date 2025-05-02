@@ -8,11 +8,13 @@ dependencies:
 - numpy
 - omegaconf
 - pip
+- e3nn
 - requests
 - tqdm
 - pytest
 - psutil
-- tyro
+- docstring_parser
+- ipython
 - sphinx
 - sphinxawesome-theme
 - sphinxcontrib-applehelp
