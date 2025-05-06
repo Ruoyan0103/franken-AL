@@ -10,24 +10,15 @@ build:
     python: "3.10"
   jobs:
     build:
-      # Extract the pre-built docs from the docs.zip file
-      - echo "Extracting pre-built docs from docs.zip"
-      - mkdir -p $READTHEDOCS_OUTPUT/html/
-      - unzip -o docs.zip -d $READTHEDOCS_OUTPUT/html/
-      
-      # Handle HTMLZip - simply copy the existing zip file
-      - mkdir -p $READTHEDOCS_OUTPUT/htmlzip/
-      - cp docs.zip $READTHEDOCS_OUTPUT/htmlzip/document.zip
-      
-      # Handle PDF format if available
-      - mkdir -p $READTHEDOCS_OUTPUT/pdf/
-      - unzip -o docs.zip "latex/*.pdf" -d temp/ || echo "No PDF found"
-      - find temp/ -name "*.pdf" -exec cp {} $READTHEDOCS_OUTPUT/pdf/document.pdf \; || echo "No PDF to copy"
-      - rm -rf temp/
-
-# Skip unnecessary steps since we're using pre-built docs
-sphinx:
-  configuration: null  # No sphinx configuration needed
-
-python:
-  install: []  # No Python packages to install
+      html:
+        - echo "Extracting pre-built docs from docs.zip"
+        - mkdir -p $READTHEDOCS_OUTPUT/html/
+        - unzip -o docs.zip -d $READTHEDOCS_OUTPUT/html/
+      htmlzip:
+        - mkdir -p $READTHEDOCS_OUTPUT/htmlzip/
+        - cp docs.zip $READTHEDOCS_OUTPUT/htmlzip/document.zip
+      pdf:
+        - mkdir -p $READTHEDOCS_OUTPUT/pdf/
+        - unzip -o docs.zip "latex/*.pdf" -d temp/ || echo "No PDF found"
+        - find temp/ -name "*.pdf" -exec cp {} $READTHEDOCS_OUTPUT/pdf/document.pdf \; || echo "No PDF to copy"
+        - rm -rf temp/
