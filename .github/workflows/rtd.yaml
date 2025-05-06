@@ -80,6 +80,7 @@ jobs:
           cd _build
           zip -r ../docs.zip .
           cd ..
+          ls
           
           # Add and commit the zip file
           git add docs.zip
