@@ -1,4 +1,4 @@
-name: Build docs and commit artifact on rtd branch
+name: Docs
 
 # Runs on pushes targeting the default branch
 on:
