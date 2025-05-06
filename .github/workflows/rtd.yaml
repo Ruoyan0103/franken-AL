@@ -4,7 +4,7 @@ name: Build docs and commit artifact on rtd branch
 on:
   push:
     branches:
-    - main
+    - docs_integration
   pull_request:
     branches:
     - main
