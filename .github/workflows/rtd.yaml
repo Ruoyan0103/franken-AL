@@ -4,7 +4,7 @@ name: Build docs and commit artifact on rtd branch
 on:
   push:
     branches:
-    - docs_integration
+    - main
   pull_request:
     branches:
     - main
@@ -66,7 +66,7 @@ jobs:
 
       # This step zips and pushes the built docs to the rtd branch
       - name: Push docs to rtd branch
-        if: github.ref == 'refs/heads/docs_integration'  # Only deploy when pushing to main
+        if: github.ref == 'refs/heads/main'  # Only deploy when pushing to main
         run: |
           # Setup git identity
           git config --global user.name "GitHub Actions"
@@ -84,7 +84,7 @@ jobs:
           # Create a fresh rtd branch
           git checkout --orphan rtd-temp
           git rm -rf .
-                    
+
           # Restore the saved files
           cp /tmp/readthedocs.yaml .readthedocs.yaml
           cp /tmp/docs.zip docs.zip
