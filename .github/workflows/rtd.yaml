@@ -83,6 +83,7 @@ jobs:
           
           # Add and commit the zip file
           git add docs.zip
+          git add .readthedocs.yaml
           git commit -m "Update documentation build [skip ci]"
           
           # Force push to rtd branch

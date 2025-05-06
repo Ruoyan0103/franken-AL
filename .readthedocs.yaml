@@ -4,20 +4,30 @@
 # Required
 version: 2
 
-# Set the OS, Python version, and other tools you might need
 build:
-  os: ubuntu-24.04
+  os: ubuntu-22.04
   tools:
-    python: "3.11"
+    python: "3.10"
+  jobs:
+    build:
+      # Extract the pre-built docs from the docs.zip file
+      - echo "Extracting pre-built docs from docs.zip"
+      - mkdir -p $READTHEDOCS_OUTPUT/html/
+      - unzip -o docs.zip -d $READTHEDOCS_OUTPUT/html/
+      
+      # Handle HTMLZip - simply copy the existing zip file
+      - mkdir -p $READTHEDOCS_OUTPUT/htmlzip/
+      - cp docs.zip $READTHEDOCS_OUTPUT/htmlzip/document.zip
+      
+      # Handle PDF format if available
+      - mkdir -p $READTHEDOCS_OUTPUT/pdf/
+      - unzip -o docs.zip "latex/*.pdf" -d temp/ || echo "No PDF found"
+      - find temp/ -name "*.pdf" -exec cp {} $READTHEDOCS_OUTPUT/pdf/document.pdf \; || echo "No PDF to copy"
+      - rm -rf temp/
 
-# Build documentation in the "docs/" directory with Sphinx
+# Skip unnecessary steps since we're using pre-built docs
 sphinx:
-   configuration: docs/conf.py
+  configuration: null  # No sphinx configuration needed
 
-# Optionally, but recommended,
-# declare the Python requirements required to build your documentation
-# See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
-   install:
-   - requirements: docs/requirements.txt
-        
+  install: []  # No Python packages to install
