@@ -84,8 +84,7 @@ jobs:
           # Create a fresh rtd branch
           git checkout --orphan rtd-temp
           git rm -rf .
-          rm -rf * .[!.]* ..?*  # Remove all files including hidden ones and _build
-          
+                    
           # Restore the saved files
           cp /tmp/readthedocs.yaml .readthedocs.yaml
           cp /tmp/docs.zip docs.zip
