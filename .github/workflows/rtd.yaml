@@ -1,0 +1,89 @@
+name: Build docs and commit artifact on rtd branch
+
+# Runs on pushes targeting the default branch
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Cancel in-progress runs when pushing a new commit on the PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  docs:
+    environment:
+      name: ghpg
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Create and setup mamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          # here we specify the environment like this instead of just installing with pip to make caching easier
+          environment-file: .github/env-docs.yml
+          environment-name: test
+          cache-environment: true
+          cache-environment-key: environment-docs
+          condarc: |
+            channels:
+              - conda-forge
+          create-args: >-
+            python=3.12
+            pytorch=2.4
+            pandoc=3.6.4
+      - name: Install franken
+        # conda setup requires this special shell
+        shell: bash -l {0}
+        # dependencies are handled in conda env
+        run: |
+          python -m pip install . --no-deps
+          micromamba list
+
+      - name: Sphinx build
+        # conda setup requires this special shell
+        shell: bash -l {0}
+        run: |
+          # Check import works. sphinx-build will try to import but not provide reliable error-traces.
+          python -c "import franken; import franken.calculators;"
+          sphinx-build docs _build
+
+      # This step zips and pushes the built docs to the rtd branch
+      - name: Push docs to rtd branch
+        if: github.ref == 'refs/heads/main'  # Only deploy when pushing to main
+        run: |
+          # Setup git identity
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # Create a fresh rtd branch
+          git checkout --orphan rtd-temp
+          git rm -rf .
+          
+          # Zip the _build directory
+          cd _build
+          zip -r ../docs.zip .
+          cd ..
+          
+          # Add and commit the zip file
+          git add docs.zip
+          git commit -m "Update documentation build [skip ci]"
+          
+          # Force push to rtd branch
+          git push origin rtd-temp:rtd -f
