@@ -90,7 +90,10 @@ jobs:
     name: Bump version and build package with hatch
     needs: test  # This ensures 'publish' only runs if 'test' passes
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[release]')
     steps:
       - uses: actions/checkout@v4
       - name: setup python
@@ -135,7 +138,10 @@ jobs:
     name: Publish to PyPi
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.build.result == 'success'
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     environment:
