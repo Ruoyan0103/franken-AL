@@ -37,8 +37,9 @@ keywords = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CSML-IIT-UCL/mlpot_transfer"
+Homepage = "https://franken.readthedocs.io/"
 Documentation = "https://franken.readthedocs.io/"
+Repository = "https://github.com/CSML-IIT-UCL/franken"
 
 [project.scripts]
 "franken.backbones" = "franken.backbones.cli:main"
