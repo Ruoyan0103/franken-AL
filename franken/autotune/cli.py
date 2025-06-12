@@ -70,30 +70,35 @@ def field_is_optional_literal(field_type: Any):
     return is_lit_present and len(all_subtypes) == 2
 
 
-def field_is_optional_int(field_type: Any):
-    if not field_is_optional(field_type):
-        return False
-    is_int_present = int in typing.get_args(field_type)
-    return is_int_present and len(typing.get_args(field_type)) == 2
+def parse_union_type(*parsers):
+    def union_parser(f: Any):
+        for p in parsers:
+            try:
+                return p(f)
+            except Exception:
+                pass
+        raise TypeError(f)
+
+    return union_parser
 
 
-def field_is_optional_float(field_type: Any):
-    if not field_is_optional(field_type):
-        return False
-    is_float_present = float in typing.get_args(field_type)
-    return is_float_present and len(typing.get_args(field_type)) == 2
-
-
-def parse_optional_int(f: Any) -> int | None:
+def parse_none_type(f: Any):
     if f.lower() == "none":
         return None
-    return int(f)
+    raise TypeError(f)
 
 
-def parse_optional_float(f: Any) -> float | None:
-    if f.lower() == "none":
-        return None
-    return float(f)
+def parse_literal(t: Any):
+    all_allowed_literals = typing.get_args(t)
+
+    def inner_parser(f: Any):
+        if str(f) in all_allowed_literals:
+            return str(f)
+        raise TypeError(
+            f"invalid choice: {repr(f)} (choose from {{{','.join(all_allowed_literals)}}})"
+        )
+
+    return inner_parser
 
 
 def parse_optional_literal(s: str) -> str | None:
@@ -144,28 +149,40 @@ class Argument:
         elif named_field.default_factory != dataclasses.MISSING:
             arg_kwargs["default"] = str(named_field.default_factory())
 
-        type_origin = typing.get_origin(named_field.type)
-        if named_field.type in {int, float, str}:
-            arg_kwargs["type"] = named_field.type
-        elif field_is_optional_int(named_field.type):
-            arg_kwargs["type"] = parse_optional_int
-        elif field_is_optional_float(named_field.type):
-            arg_kwargs["type"] = parse_optional_int
-        elif type_origin == typing.Literal:
-            arg_kwargs["choices"] = typing.get_args(named_field.type)
-        elif field_is_optional_literal(named_field.type):
-            arg_kwargs["choices"] = list(typing.get_args(named_field.type)) + ["none"]
-            arg_kwargs["type"] = parse_optional_literal
-        elif named_field.type is bool:
-            if named_field.default is False:
-                arg_kwargs["action"] = "store_true"
-            elif named_field.default is True:
-                arg_kwargs["action"] = "store_false"
-                if opposite_full_name is None:
-                    raise ValueError(
-                        f"opposite_full_name must be non-null for field {dataclass_name}"
-                    )
-                full_name = opposite_full_name
+        if "type" not in kwargs:
+            type_origin = typing.get_origin(named_field.type)
+            if named_field.type in {int, float, str}:
+                arg_kwargs["type"] = named_field.type
+            elif type_origin == typing.Literal:
+                arg_kwargs["choices"] = typing.get_args(named_field.type)
+            elif field_is_optional_literal(named_field.type):
+                arg_kwargs["choices"] = list(typing.get_args(named_field.type)) + [
+                    "none"
+                ]
+                arg_kwargs["type"] = parse_optional_literal
+            elif named_field.type is bool:
+                if named_field.default is False:
+                    arg_kwargs["action"] = "store_true"
+                elif named_field.default is True:
+                    arg_kwargs["action"] = "store_false"
+                    if opposite_full_name is None:
+                        raise ValueError(
+                            f"opposite_full_name must be non-null for field {dataclass_name}"
+                        )
+                    full_name = opposite_full_name
+            if isinstance(named_field.type, types.UnionType):
+                all_types = typing.get_args(named_field.type)
+                parsers = []
+                for t in all_types:
+                    if t is type(None):
+                        parsers.append(parse_none_type)
+                    elif typing.get_origin(t) is typing.Literal:
+                        parsers.append(parse_literal(t))
+                    elif t in {int, float, str}:
+                        parsers.append(t)
+                    else:
+                        raise RuntimeError(f"Unsupported union type: {all_types=}")
+                arg_kwargs["type"] = parse_union_type(*parsers)
 
         return Argument(
             full_name=full_name,
