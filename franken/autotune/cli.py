@@ -510,6 +510,7 @@ def build_parser(return_groups: bool = False):
     parser.add_argument(
         "--jac-chunk-size",
         default="auto",
+        type=parse_union_type(int, parse_literal(typing.Literal["auto"])),
         help=get_field_docstring(AutotuneConfig, "jac_chunk_size"),
     )
     parser.add_argument(
