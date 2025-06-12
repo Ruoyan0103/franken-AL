@@ -70,8 +70,34 @@ def field_is_optional_literal(field_type: Any):
     return is_lit_present and len(all_subtypes) == 2
 
 
+def field_is_optional_int(field_type: Any):
+    if not field_is_optional(field_type):
+        return False
+    is_int_present = int in typing.get_args(field_type)
+    return is_int_present and len(typing.get_args(field_type)) == 2
+
+
+def field_is_optional_float(field_type: Any):
+    if not field_is_optional(field_type):
+        return False
+    is_float_present = float in typing.get_args(field_type)
+    return is_float_present and len(typing.get_args(field_type)) == 2
+
+
+def parse_optional_int(f: Any) -> int | None:
+    if f.lower() == "none":
+        return None
+    return int(f)
+
+
+def parse_optional_float(f: Any) -> float | None:
+    if f.lower() == "none":
+        return None
+    return float(f)
+
+
 def parse_optional_literal(s: str) -> str | None:
-    if s == "none":
+    if s.lower() == "none":
         return None
     return s
 
@@ -118,19 +144,19 @@ class Argument:
         elif named_field.default_factory != dataclasses.MISSING:
             arg_kwargs["default"] = str(named_field.default_factory())
 
+        type_origin = typing.get_origin(named_field.type)
         if named_field.type in {int, float, str}:
             arg_kwargs["type"] = named_field.type
-
-        # Literals
-        type_origin = typing.get_origin(named_field.type)
-        if type_origin == typing.Literal:
+        elif field_is_optional_int(named_field.type):
+            arg_kwargs["type"] = parse_optional_int
+        elif field_is_optional_float(named_field.type):
+            arg_kwargs["type"] = parse_optional_int
+        elif type_origin == typing.Literal:
             arg_kwargs["choices"] = typing.get_args(named_field.type)
-        if field_is_optional_literal(named_field.type):
+        elif field_is_optional_literal(named_field.type):
             arg_kwargs["choices"] = list(typing.get_args(named_field.type)) + ["none"]
             arg_kwargs["type"] = parse_optional_literal
-
-        # Booleans
-        if named_field.type is bool:
+        elif named_field.type is bool:
             if named_field.default is False:
                 arg_kwargs["action"] = "store_true"
             elif named_field.default is True:
