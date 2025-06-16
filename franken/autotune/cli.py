@@ -172,6 +172,8 @@ class Argument:
                     full_name = opposite_full_name
             if isinstance(named_field.type, types.UnionType):
                 all_types = typing.get_args(named_field.type)
+                # Sort types such that 'str' is last
+                all_types = sorted(all_types, key=lambda t: 999 if t is str else 1)
                 parsers = []
                 for t in all_types:
                     if t is type(None):
