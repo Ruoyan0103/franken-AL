@@ -196,7 +196,7 @@ class FrankenMACE(torch.nn.Module):
                 edge_attrs=edge_attrs,
                 edge_feats=edge_feats,
                 edge_index=edge_index,
-            )
+            )  # type: ignore
 
             node_feats = product(node_feats=node_feats, sc=sc, node_attrs=node_attrs)
             # Extract only scalars. Use `irreps_out` attribute to figure out which features correspond to scalars.
