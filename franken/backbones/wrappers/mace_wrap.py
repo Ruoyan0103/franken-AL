@@ -176,6 +176,8 @@ class FrankenMACE(torch.nn.Module):
         self.radial_embedding = base_model.radial_embedding
         self.interactions = base_model.interactions[: self.interaction_block]
         self.products = base_model.products[: self.interaction_block]
+        self.is_mace_v3_14 = Version(mace.__version__) >= Version("0.3.14")  # type: ignore
+        self.is_mace_v3_13 = Version(mace.__version__) >= Version("0.3.13")  # type: ignore
 
     def init_args(self):
         return {
@@ -202,7 +204,7 @@ class FrankenMACE(torch.nn.Module):
         edge_feats = self.radial_embedding(
             lengths, node_attrs, edge_index, self.atomic_numbers
         )  # type: ignore
-        if Version(mace.__version__) >= Version("0.3.14"):  # type: ignore
+        if self.is_mace_v3_14:
             edge_feats, cutoff = edge_feats
         else:
             cutoff = None
@@ -216,7 +218,7 @@ class FrankenMACE(torch.nn.Module):
         for i, (interaction, product) in enumerate(
             zip(self.interactions, self.products)
         ):
-            if Version(mace.__version__) >= Version("0.3.14"):  # type: ignore
+            if self.is_mace_v3_14:
                 node_feats, sc = interaction(
                     node_attrs=node_attrs,
                     node_feats=node_feats,
@@ -228,7 +230,7 @@ class FrankenMACE(torch.nn.Module):
                     lammps_class=lammps_class,
                     lammps_natoms=lammps_natoms,
                 )  # type: ignore
-            elif Version(mace.__version__) >= Version("0.3.13"):  # type: ignore
+            elif self.is_mace_v3_13:
                 node_feats, sc = interaction(
                     node_attrs=node_attrs,
                     node_feats=node_feats,
