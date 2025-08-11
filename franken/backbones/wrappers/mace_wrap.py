@@ -1,4 +1,6 @@
 from typing import Final
+import mace
+from packaging.version import Version
 
 import torch
 from mace.modules.models import MACE
@@ -123,7 +125,20 @@ def undo_script_mace(base: torch.jit.ScriptModule) -> MACE:
     args["atomic_inter_scale"] = base.scale_shift.scale.cpu().numpy()
     args["atomic_inter_shift"] = base.scale_shift.shift.cpu().numpy()
     model = ScaleShiftMACE(**args)
-    model.load_state_dict(base.state_dict())
+    load_result = model.load_state_dict(base.state_dict(), strict=False)
+    if len(load_result.unexpected_keys) > 0:
+        raise RuntimeError(
+            f"Failed to load state-dict. There were unexpected keys: {load_result.unexpected_keys}"
+        )
+    for k in load_result.missing_keys:
+        if (
+            "weights_0_zeroed" not in k
+            and "weights_1_zeroed" not in k
+            and "weights_max_zeroed" not in k
+        ):
+            raise RuntimeError(
+                f"Failed to load state-dict. There were missing keys: {load_result.missing_keys}"
+            )
     return model
 
 
@@ -177,28 +192,65 @@ class FrankenMACE(torch.nn.Module):
         assert shifts is not None
         assert node_attrs is not None
         # Embeddings
-        node_feats = self.node_embedding(node_attrs)
+        node_feats = self.node_embedding(node_attrs)  # type: ignore
         vectors, lengths = get_edge_vectors_and_lengths(
             positions=data.atom_pos,
             edge_index=edge_index,
             shifts=shifts,
         )
-        edge_attrs = self.spherical_harmonics(vectors)
+        edge_attrs = self.spherical_harmonics(vectors)  # type: ignore
         edge_feats = self.radial_embedding(
             lengths, node_attrs, edge_index, self.atomic_numbers
-        )
+        )  # type: ignore
+        if Version(mace.__version__) >= Version("0.3.14"):  # type: ignore
+            edge_feats, cutoff = edge_feats
+        else:
+            cutoff = None
+
+        # lammps_class, lammps_natoms are only set when using LAMMPS MLIAP
+        # the defaults are used otherwise and set here
+        lammps_class = None
+        lammps_natoms = (0, 0)
 
         node_feats_list = []
-        for interaction, product in zip(self.interactions, self.products):
-            node_feats, sc = interaction(
-                node_attrs=node_attrs,
-                node_feats=node_feats,
-                edge_attrs=edge_attrs,
-                edge_feats=edge_feats,
-                edge_index=edge_index,
-            )  # type: ignore
+        for i, (interaction, product) in enumerate(
+            zip(self.interactions, self.products)
+        ):
+            if Version(mace.__version__) >= Version("0.3.14"):  # type: ignore
+                node_feats, sc = interaction(
+                    node_attrs=node_attrs,
+                    node_feats=node_feats,
+                    edge_attrs=edge_attrs,
+                    edge_feats=edge_feats,
+                    edge_index=edge_index,
+                    cutoff=cutoff,
+                    first_layer=(i == 0),
+                    lammps_class=lammps_class,
+                    lammps_natoms=lammps_natoms,
+                )  # type: ignore
+            elif Version(mace.__version__) >= Version("0.3.13"):  # type: ignore
+                node_feats, sc = interaction(
+                    node_attrs=node_attrs,
+                    node_feats=node_feats,
+                    edge_attrs=edge_attrs,
+                    edge_feats=edge_feats,
+                    edge_index=edge_index,
+                    first_layer=(i == 0),
+                    lammps_class=lammps_class,
+                    lammps_natoms=lammps_natoms,
+                )  # type: ignore
+            else:
+                node_feats, sc = interaction(
+                    node_attrs=node_attrs,
+                    node_feats=node_feats,
+                    edge_attrs=edge_attrs,
+                    edge_feats=edge_feats,
+                    edge_index=edge_index,
+                )  # type: ignore
 
-            node_feats = product(node_feats=node_feats, sc=sc, node_attrs=node_attrs)
+            node_feats = product(
+                node_feats=node_feats, sc=sc, node_attrs=node_attrs
+            )  # type: ignore
             # Extract only scalars. Use `irreps_out` attribute to figure out which features correspond to scalars.
             # irreps_out is an `Irreps` object: a 2-tuple of multiplier and `Irrep` objects.
             # Tuple[Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int]]]
