@@ -16,11 +16,11 @@ Franken is an open-source library that can be used to enhance the accuracy of at
 
 <img src="/docs/_static/diagram_part1.png" alt="Franken diagram" width="1000px">
 
+For detailed information and benchmarks please check our paper [*Fast and Fourier Features for Transfer Learning of Interatomic Potentials*](https://arxiv.org/abs/2505.05652).
+
 ## Documentation
 
-A full documentation including several examples is available: [https://franken.readthedocs.io/index.html](https://franken.readthedocs.io/index.html).
-
-For a comprehensive description of the methods behind franken, have a look at [the paper](https://arxiv.org/abs/2505.05652).
+A full documentation including several examples is available: [https://franken.readthedocs.io/index.html](https://franken.readthedocs.io/index.html). [The paper](https://arxiv.org/abs/2505.05652) also contains a comprehensive description of the methods behind franken.
 
 ## Install
 
