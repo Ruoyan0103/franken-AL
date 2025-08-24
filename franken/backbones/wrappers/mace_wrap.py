@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Final, Optional, Tuple
 import mace
 from packaging.version import Version
 
@@ -201,12 +201,13 @@ class FrankenMACE(torch.nn.Module):
             shifts=shifts,
         )
         edge_attrs = self.spherical_harmonics(vectors)  # type: ignore
-        edge_feats = self.radial_embedding(
+        rad_emb = self.radial_embedding(
             lengths, node_attrs, edge_index, self.atomic_numbers
         )  # type: ignore
-        if self.is_mace_v3_14:
-            edge_feats, cutoff = edge_feats
+        if torch.jit.isinstance(rad_emb, Tuple[torch.Tensor, Optional[float]]):
+            edge_feats, cutoff = rad_emb
         else:
+            edge_feats = rad_emb
             cutoff = None
 
         # lammps_class, lammps_natoms are only set when using LAMMPS MLIAP
