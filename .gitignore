@@ -190,3 +190,4 @@ slurm*
 franken/dft/*_test
 franken/dft/*_test2
 franken/dft/potpaw_PBE
+#franken/random/structures
