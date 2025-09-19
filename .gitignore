@@ -185,3 +185,8 @@ slurm*
 *baseline_/
 *.out
 .history/
+
+# dft
+franken/dft/*_test
+franken/dft/*_test2
+franken/dft/potpaw_PBE

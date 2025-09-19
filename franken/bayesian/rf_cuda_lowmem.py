@@ -318,7 +318,7 @@ class RandomFeaturesTrainer(BaseTrainer):
 
         return log_collection, all_weights 
 
-    def evaluate_bayesian(
+    def evaluate(
         self,
         model: FrankenPotential,
         dataloader: torch.utils.data.DataLoader,
@@ -410,126 +410,6 @@ class RandomFeaturesTrainer(BaseTrainer):
         num_models = (
             all_weights_mean.shape[0]
             if all_weights_mean is not None
-            else model.rf.weights.shape[0]
-        )
-        # Sync metrics across GPUs
-        metric_values = {}
-        for metric in metric_objects:
-            value = metric.compute(reset=False)
-            if metric.samples_counter.item() != tot_dset_size:
-                logger.warning(
-                    f"Metric {metric.name} has {metric.samples_counter.item()} samples "
-                    f"while the dataset has {tot_dset_size} configurations."
-                )
-            assert value.ndim == 1
-            assert value.shape[0] == num_models
-            metric_values[metric.name] = value
-
-        # Explode metric values into list of MetricLog
-        raw_logs = []
-        for idx in range(num_models):
-            results = []
-            for name, value in metric_values.items():
-                float_value = value[idx].item()
-                results.append(dict(name=name, value=float_value))
-            raw_logs.append(results)
-
-        assert len(raw_logs) == len(log_collection)
-
-        for log_entry, results in zip(log_collection, raw_logs):
-            for metric in results:
-                try:
-                    log_entry.add_metric(metric["name"], metric["value"], split)
-                except ValueError as e:
-                    logger.warning(f"Could not add metric because: {str(e)}")
-        return log_collection
-    
-    def evaluate(
-        self,
-        model: FrankenPotential,
-        dataloader: torch.utils.data.DataLoader,
-        log_collection: LogCollection,
-        all_weights: torch.Tensor | None,
-        metrics: Sequence[str] = ("energy_MAE", "forces_MAE", "forces_cosim"),
-    ) -> LogCollection:
-        if self.device.type == "cuda":
-            # Patch E3NN for batched jacobians!
-            from franken.backbones.wrappers.common_patches import patch_e3nn
-
-            patch_e3nn()
-        tot_dset_size = len(dataloader.dataset)  # type: ignore
-
-        metric_objects: List[BaseMetric] = []
-        for name in metrics:
-            try:
-                metric_obj = franken.metrics.init_metric(
-                    name, device=self.device, dtype=self.buffer_dt
-                )
-                metric_objects.append(metric_obj)
-            except KeyError:
-                logger.warning(
-                    f"Unknown metric {name}. Skipping. Available metrics: {franken.metrics.available_metrics()}"
-                )
-
-        split_name = dataloader.dataset.split
-        try:
-            split = DataSplit[split_name.upper()]
-        except KeyError:
-            logger.warning(f"Unrecognized split '{split_name}' in dataloader")
-            split = DataSplit.UNDEFINED
-
-        progress_bar = throughput(
-            dataloader,
-            desc=f"{split.name.lower()} evaluation",
-            total=tot_dset_size,
-            device=self.device,
-        )
-        for i, (data, targets) in enumerate(progress_bar):
-            data = data.to(device=self.device)
-            targets = targets.to(device=self.device)
-            if split == DataSplit.TRAIN and self.save_fmaps:
-                # Shortcut to compute predictions for the training-set, for which
-                # we already have computed energy and force feature maps
-                assert len(self.forces_fmap) == len(self.energy_fmap)
-                assert len(self.forces_fmap) == len(dataloader)
-                predictions = Target(
-                    *model.energy_and_forces_from_fmaps(
-                        data,
-                        energy_fmap=self.energy_fmap[i],
-                        forces_fmap=self.forces_fmap[i],
-                        weights=all_weights,
-                        add_energy_shift=False,  # since it's always train here
-                    )
-                )
-            else:
-                if all_weights is None or all_weights.shape[0] <= 100:
-                    forces_mode = "torch.autograd"
-                else:
-                    forces_mode = "torch.func"
-                predictions = Target(
-                    *model.energy_and_forces(
-                        data,
-                        weights=all_weights,
-                        forces_mode=forces_mode,
-                        add_energy_shift=(False if split == DataSplit.TRAIN else True),
-                    )
-                )
-            if torch.any(torch.isnan(predictions.energy)):
-                logger.warning(
-                    f"Configuration {i} - {split_name} has NaNs in energy predictions"
-                )
-            if predictions.forces is not None and torch.any(
-                torch.isnan(predictions.forces)
-            ):
-                logger.warning(
-                    f"Configuration {i} - {split_name} has NaNs in force predictions"
-                )
-            for metric in metric_objects:
-                metric.update(predictions, targets)
-
-        num_models = (
-            all_weights.shape[0]
-            if all_weights is not None
             else model.rf.weights.shape[0]
         )
         # Sync metrics across GPUs
@@ -669,22 +549,7 @@ class RandomFeaturesTrainer(BaseTrainer):
             )
 
     @torch.no_grad()
-    def solve(self, force_weight: float, l2_penalty: float = 1e-6) -> Tensor:
-        # This is the 2nd copy of the covariance matrix that we need to store.
-        lerped_cov, lerped_diag = triangular_lerp(
-            self.covariance,
-            diag_upper=self.diag_energy,
-            diag_lower=self.diag_forces,
-            weight=force_weight,
-            inplace=False,
-        )
-        lerped_cov.diagonal().copy_(lerped_diag)
-        rhs = torch.lerp(self.coeffs_energy, self.coeffs_forces, force_weight)
-        solution = psd_ridge(lerped_cov, rhs, l2_penalty)
-        return solution
-    
-    @torch.no_grad()
-    def solve_bayesian(
+    def solve(
         self, 
         force_weight: float, 
         alpha: float = 1e-6, 

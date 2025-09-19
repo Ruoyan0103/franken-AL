@@ -12,11 +12,11 @@ class RandomStructures:
     def __init__(
         self, 
         element: str = "Ge",
-        mass: float = 72.64, # atomic mass
-        supercell_size: int = 1, # supercell size
-        unit_box_range: tuple[float, float] = (3, 6), # in Angstrom
-        density_range: tuple[float, float] = (5, 6), # in g/cm3
-        r_min: float = 2.11, # val der Waals radius
+        mass: float = 72.64,                           # atomic mass
+        supercell_size: int = 1,                       # supercell size
+        unit_box_range: tuple[float, float] = (3, 6),  # in Angstrom
+        density_range: tuple[float, float] = (5, 6),   # in g/cm3
+        r_min: float = 2.11,                           # val der Waals radius
         seed = None):
         self.element = element
         self.mass = mass
@@ -50,29 +50,23 @@ class RandomStructures:
             os.makedirs(structure_folder)
         structures = []
         n = 0
+        outfile = os.path.join(structure_folder, f"{self.element}.xyz")
         while n < n_structures:
             structure = self._generate_one_structure()
             if structure is not None:
                 structures.append(structure)
-                n += 1
-                file = os.path.join(structure_folder, f"rs-{n}.data")
-                write(file, structure, format="vasp")
+                n += 1        
+                write(outfile, structure, format="extxyz", append=True)
         return structures
 
 if __name__ == "__main__":
     supercell_size = 1
-    num_struct = 10
+    num_struct = 100
     seed = 42
     structure_folder = os.path.join(file_dir, 'structures')
     
-    rs_generator = RandomStructures(supercell_size=supercell_size, seed=seed)
+    rs_generator = RandomStructures(
+        supercell_size=supercell_size, 
+        seed=seed
+    )
     rs_generator.generate_multiple_structures(n_structures=num_struct, structure_folder=structure_folder)
-    
-
-
-
-
-     
-        
-
-   
